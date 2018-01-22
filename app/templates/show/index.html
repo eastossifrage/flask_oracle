@@ -1,10 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-    <h1>flask_oracle项目欢迎你的查阅！</h1>
-</body>
-</html>
+{% extends 'show/common/base.html' %}
+{% block title %}
+    {{ super() }}——首页
+{% endblock %}
+{% block content %}
+    <div class="page-header">
+        <h1>{{ current_user.name }} <small> —— 首页</small></h1>
+    </div>
+    <div>
+        <h3>美好的事物无需多言！ <span class="label label-danger"><i class="glyphicon glyphicon-star"></i> </span></h3>
+        <h3>留白是为了更好的探索！ <span class="label label-danger"><i class="glyphicon glyphicon-star"></i> </span></h3>
+    </div>
+{% endblock %}

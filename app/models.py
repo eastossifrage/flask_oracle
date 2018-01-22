@@ -28,12 +28,22 @@ class OusiStaff(UserMixin, db.Model):
     phone = db.Column(db.String(11))
     role = db.Column(db.String(8))
 
-    def is_admin(self):
+    @property
+    def id(self):
+        return self.sid
+
+    def verify_password(self, password):
+        return self.password == password
+
+    def is_admin(self):  # 自行定义的方法,用于权限判断
         return self.role == 'admin'
 
 
 class AnonymousUser(AnonymousUserMixin):
-    def is_admin(self):
+    '''
+    继承至该类的用户模型 将作为未登陆时的用户模型,可以保持代码的一致性。
+    '''
+    def is_admin(self): # 自行定义的方法,用于权限判断
         return False
 
 
