@@ -13,7 +13,7 @@ manager = Manager(app=app)
 
 
 def make_shell_context():
-    return dict(app=app, db=db)
+    return dict(app=app, db=db, OusiStaff=OusiStaff, OusiGuest=OusiGuest)
 
 
 manager.add_command("shell", Shell(make_context=make_shell_context))

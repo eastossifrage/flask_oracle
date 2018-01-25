@@ -16,7 +16,7 @@ class Config(object):
     SECRET_KEY = os.environ.get('SECRET_KEY') or hashlib.new(name='md5', string='ousi keji hawk@#').hexdigest()
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
-    OUSI_POSTS_PER_PAGE = 100
+    OUSI_POSTS_PER_PAGE = 20
 
 
     @staticmethod

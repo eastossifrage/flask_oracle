@@ -10,8 +10,8 @@ from flask_login import LoginManager
 
 db = SQLAlchemy()
 login_manager = LoginManager()
-login_manager.session_protection = 'strong'
-login_manager.login_view = 'show.login'
+login_manager.session_protection = 'strong' #  可以设置None,'basic','strong'  以提供不同的安全等级,一般设置strong,如果发现异常会登出用户。
+login_manager.login_view = 'show.login' # 这里填写你的登陆界面的路由
 
 
 def create_app(config_name):

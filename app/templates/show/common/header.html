@@ -13,6 +13,7 @@
             <ul class="nav navbar-nav navbar-right">
                 <li><a>{{ current_user.role }}</a></li>
                 <li><a> {{ current_user.name }}</a></li>
+                <li><a href="{{ url_for('show.logout') }}"> 退出</a></li>
             </ul>
         </div>
     </div>
