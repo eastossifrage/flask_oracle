@@ -3,9 +3,39 @@
 {% block title %}
     {{ super() }}——第一页
 {% endblock %}
+{% block js %}
+    {{ super() }}
+    <script>
+        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+        function downloadxls() {
+            var database = new Object();
+            database = {{ database|safe }};
+            var data = JSON.stringify(database);
+            $.ajax({
+                type: "POST",
+                url: "{{ url_for('show.download_xls', filename='%s_01.xls' % current_user.phone) }}",
+                contentType: "application/json; charset=utf-8",
+                data: data,
+                success: function (msg) {
+                    if (msg.data === 'ok'){
+                        //window.open("{{ url_for('show.static', filename='excel_files/%s_01.xls' % current_user.phone) }}");
+                        var $eleForm = $("<form method='get'></form>");
+                        $eleForm.attr("action", "{{ url_for('show.static', filename='excel_files/%s_01.xls' % current_user.phone) }}");
+                        $(document.body).append($eleForm);
+                        //提交表单，实现下载
+                        $eleForm.submit();
+                    }
+                }
+            })
+        }
+    </script>
+{% endblock %}
 {% block content %}
     <div class="page-header">
-        <h1>{{ current_user.name }} <small> —— 第一页</small></h1>
+        <h1>{{ current_user.name }} <small> —— 第一页</small>
+        <a class="btn btn-xs btn-primary pull-right" type="button" title="导出报表"
+            onclick="downloadxls()"> 导出报表 </a>
+        </h1>
     </div>
     <div class="col-sm-12 col-lg-12" style="margin: 10px 0 10px 0 ">
         <form method="post" role="form">

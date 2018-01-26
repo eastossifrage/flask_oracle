@@ -5,12 +5,16 @@ __blog__ = 'http://www.os373.cn'
 from .. import db
 from . import show
 from .forms import LoginForm, SearchForm
-from flask import render_template, abort, redirect, request, current_app, url_for, flash, json, jsonify, send_from_directory
+from flask import render_template, abort, redirect, request, current_app, url_for, flash, json, jsonify
 from flask_login import login_required, login_user, logout_user, current_user
-from ..models import OusiStaff, OusiGuest
+from ..models import OusiStaff, OusiGuest, AlchemyJsonEncoder
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import aliased
 from datetime import date
+import os
+from collections import OrderedDict
+from config import basedir
+from pyexcel_xls import save_data, get_data
 
 
 @show.route('/', methods = ['GET', 'POST'])
@@ -73,7 +77,8 @@ def _01():
                                         ).filter(
                 OusiStaff.phone == g1.staff_phone, current_user.department==OusiStaff.department,
                 and_(g1.month.between(search_form.start_time.data.strip(), search_form.end_time.data.strip()),
-                     OusiStaff.name.like('%{}%'.format(search_form.name.data.strip())), OusiStaff.phone.like('%{}%'.format(search_form.phone.data.strip())))
+                     OusiStaff.name.like('%{}%'.format(search_form.name.data.strip())),
+                     OusiStaff.phone.like('%{}%'.format(search_form.phone.data.strip())))
             ).order_by(g1.name).group_by(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
                                          OusiStaff.role,
                                          g1.name.label('guest_name'), g1.month, g1.balance)
@@ -109,7 +114,7 @@ def _01():
                                          g1.name.label('guest_name'), g1.month, g1.balance)
     data = database.paginate(page, per_page=current_app.config['OUSI_POSTS_PER_PAGE'], error_out=False)
 
-    return render_template('show/01.html', data=data, searchForm=search_form)
+    return render_template('show/01.html', data=data, searchForm=search_form, database=json.dumps(database, cls=AlchemyJsonEncoder))
 
 
 @show.route('/02', methods = ['GET', 'POST'])
@@ -172,12 +177,46 @@ def _02():
                                         sbq.c.month, func.count(sbq.c.guest_name).label('members'),
                                         func.sum(sbq.c.balance).label('balance'),
                                         func.sum(sbq.c.last_balance).label('last_balance')). \
-                filter(sbq.c.month.between(search_form.start_time.data.strip(), search_form.end_time.data.strip())).group_by(sbq.c.department, sbq.c.role,
+                filter(sbq.c.month.between(search_form.start_time.data.strip(),
+                                           search_form.end_time.data.strip())).group_by(sbq.c.department, sbq.c.role,
                                                                                sbq.c.staff_name, sbq.c.staff_phone,
                                                                                sbq.c.month)
     data = database.paginate(page, per_page=current_app.config['OUSI_POSTS_PER_PAGE'], error_out=False)
 
-    return render_template('show/02.html', data=data, searchForm=search_form)
+    return render_template('show/02.html', data=data, searchForm=search_form, database=json.dumps(database, cls=AlchemyJsonEncoder))
+
+
+excel_path = os.path.join(basedir, 'app/show/static/excel_files/')
+
+@show.route('/<path:filename>', methods=['GET', 'POST'])
+def download_xls(filename):
+    data = OrderedDict()
+    data_path = os.path.join(excel_path, filename)
+
+    num = 0
+    if '01.xls' in filename:
+        header_data = ['序号', '部门', '角色', '员工', '电话', '客户', '月份',
+                       '本月资产余额	', '上月资产余额', '新增余额']
+        body_data = [header_data]
+        for t in json.loads(request.get_data()):
+            num += 1
+            body_data.append([num, t["department"], t["role"], t["staff_name"], t["phone"], t["guest_name"],
+                              t["month"], t["balance"], t["last_balance"],
+                              float('%.2f' % t["balance"]) - float('%.2f' % t["last_balance"])])
+        data.update({'01报表': body_data})
+
+    if '02.xls' in filename:
+        header_data = ['序号', '部门', '角色', '员工', '电话', '月份', '管户数'
+                       '本月资产余额	', '上月资产余额', '新增余额']
+        body_data = [header_data]
+        for t in json.loads(request.get_data()):
+            num += 1
+            body_data.append([num, t["department"], t["role"], t["staff_name"], t["staff_phone"],
+                              t["month"], t["balance"], t["last_balance"],
+                              float('%.2f' % t["balance"]) - float('%.2f' % t["last_balance"])])
+        data.update({'02报表': body_data})
+    save_data(data_path, data)
+    return jsonify({"data": "ok"})
 
 
 @show.route('/logout')
