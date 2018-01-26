@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 __author__ = '东方鹗'
-__blog__ = u'http://www.os373.cn'
+__blog__ = 'http://www.os373.cn'
 
 
 from . import db
@@ -17,21 +17,6 @@ import json
 @login_manager.user_loader
 def load_user(user_id):
     return OusiStaff.query.get(int(user_id))
-
-
-def get_last_month(datedata=date.today().strftime('%Y-%m')):
-    if datedata:
-        year, month  = datedata.split('-')
-        year = int(year)
-        month = int(month)
-
-        if month == 1:
-            month = 12
-            year -= 1
-        else:
-            month -= 1
-            month = str(month).rjust(2, '0')
-        return "{}-{}".format(year, month)
 
 
 class OusiStaff(UserMixin, db.Model):

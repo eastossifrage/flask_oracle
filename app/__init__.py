@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 __author__ = '东方鹗'
-__blog__ = u'http://www.os373.cn'
+__blog__ = 'http://www.os373.cn'
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy

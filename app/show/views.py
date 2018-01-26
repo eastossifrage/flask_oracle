@@ -1,14 +1,14 @@
 # -*- coding:utf-8 -*-
-__author__ = u'东方鹗'
-__blog__ = u'http://www.os373.cn'
+__author__ = '东方鹗'
+__blog__ = 'http://www.os373.cn'
 
 from .. import db
 from . import show
-from .forms import LoginForm
+from .forms import LoginForm, SearchForm
 from flask import render_template, abort, redirect, request, current_app, url_for, flash, json, jsonify, send_from_directory
 from flask_login import login_required, login_user, logout_user, current_user
 from ..models import OusiStaff, OusiGuest
-from sqlalchemy import func, or_
+from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import aliased
 from datetime import date
 
@@ -42,6 +42,7 @@ def login():
 @show.route('/01', methods = ['GET', 'POST'])
 @login_required
 def _01():
+    search_form = SearchForm(prefix='search')
     g1 = aliased(OusiGuest)
     g2 = aliased(OusiGuest)
     page = request.args.get('page', 1, type=int)
@@ -50,16 +51,32 @@ def _01():
                                     OusiStaff.role,
                                     g1.name.label('guest_name'), g1.month, g1.balance,
                                     func.nvl(db.session.query(g2.balance).filter(
-                                        g1.name == g2.name,
-                                        func.to_date(g2.month, 'yyyy-mm') == func.add_months(
+                                        g1.name==g2.name,
+                                        func.to_date(g2.month, 'yyyy-mm')==func.add_months(
                                             func.to_date(g1.month, 'yyyy-mm'), -1)
                                     ), 0).label('last_balance')
                                     ).filter(
-            OusiStaff.phone == g1.staff_phone, current_user.department == OusiStaff.department,
-            g1.month == date.today().strftime('%Y-%m')
+            OusiStaff.phone==g1.staff_phone, current_user.department==OusiStaff.department,
+            g1.month==date.today().strftime('%Y-%m')
         ).order_by(g1.name).group_by(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
                                      OusiStaff.role,
                                      g1.name.label('guest_name'), g1.month, g1.balance)
+        if search_form.validate_on_submit():
+            database = db.session.query(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
+                                        OusiStaff.role,
+                                        g1.name.label('guest_name'), g1.month, g1.balance,
+                                        func.nvl(db.session.query(g2.balance).filter(
+                                            g1.name==g2.name,
+                                            func.to_date(g2.month, 'yyyy-mm')==func.add_months(
+                                                func.to_date(g1.month, 'yyyy-mm'), -1)
+                                        ), 0).label('last_balance')
+                                        ).filter(
+                OusiStaff.phone == g1.staff_phone, current_user.department==OusiStaff.department,
+                and_(g1.month.between(search_form.start_time.data.strip(), search_form.end_time.data.strip()),
+                     OusiStaff.name.like('%{}%'.format(search_form.name.data.strip())), OusiStaff.phone.like('%{}%'.format(search_form.phone.data.strip())))
+            ).order_by(g1.name).group_by(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
+                                         OusiStaff.role,
+                                         g1.name.label('guest_name'), g1.month, g1.balance)
     else:
         database = db.session.query(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
                                     OusiStaff.role,
@@ -75,14 +92,30 @@ def _01():
             ).order_by(g1.name).group_by(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
                                     OusiStaff.role,
                                     g1.name.label('guest_name'), g1.month, g1.balance)
+        if search_form.validate_on_submit():
+            database = db.session.query(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
+                                        OusiStaff.role,
+                                        g1.name.label('guest_name'), g1.month, g1.balance,
+                                        func.nvl(db.session.query(g2.balance).filter(
+                                            g1.name == g2.name,
+                                            func.to_date(g2.month, 'yyyy-mm') == func.add_months(
+                                                func.to_date(g1.month, 'yyyy-mm'), -1)
+                                        ), 0).label('last_balance')
+                                        ).filter(
+                OusiStaff.phone == g1.staff_phone, current_user.phone == OusiStaff.phone,
+                g1.month.between(search_form.start_time.data.strip(), search_form.end_time.data.strip())
+            ).order_by(g1.name).group_by(OusiStaff.department, OusiStaff.name.label('staff_name'), OusiStaff.phone,
+                                         OusiStaff.role,
+                                         g1.name.label('guest_name'), g1.month, g1.balance)
     data = database.paginate(page, per_page=current_app.config['OUSI_POSTS_PER_PAGE'], error_out=False)
 
-    return render_template('show/01.html', data=data)
+    return render_template('show/01.html', data=data, searchForm=search_form)
 
 
 @show.route('/02', methods = ['GET', 'POST'])
 @login_required
 def _02():
+    search_form = SearchForm(prefix='search')
     page = request.args.get('page', 1, type=int)
     g1 = aliased(OusiGuest)
     g2 = aliased(OusiGuest)
@@ -104,6 +137,17 @@ def _02():
             filter(sbq.c.month==date.today().strftime('%Y-%m')).group_by(sbq.c.department, sbq.c.role,
                                                                          sbq.c.staff_name, sbq.c.staff_phone,
                                                                          sbq.c.month)
+        if search_form.validate_on_submit():
+            database = db.session.query(sbq.c.department, sbq.c.role, sbq.c.staff_name, sbq.c.staff_phone,
+                                        sbq.c.month, func.count(sbq.c.guest_name).label('members'),
+                                        func.sum(sbq.c.balance).label('balance'),
+                                        func.sum(sbq.c.last_balance).label('last_balance')). \
+                filter(and_(sbq.c.month.between(search_form.start_time.data.strip(), search_form.end_time.data.strip()),
+                            sbq.c.staff_name.like('%{}%'.format(search_form.name.data.strip())),
+                            sbq.c.staff_phone.like('%{}%'.format(search_form.phone.data.strip())))
+                       ).group_by(sbq.c.department, sbq.c.role,
+                                                                               sbq.c.staff_name, sbq.c.staff_phone,
+                                                                               sbq.c.month)
     else:
         sbq = db.session.query(OusiStaff.department, OusiStaff.role, OusiStaff.name.label('staff_name'),
                                g1.staff_phone, g1.name.label('guest_name'), g1.month, g1.balance,
@@ -123,9 +167,17 @@ def _02():
             filter(sbq.c.month == date.today().strftime('%Y-%m')).group_by(sbq.c.department, sbq.c.role,
                                                                            sbq.c.staff_name, sbq.c.staff_phone,
                                                                            sbq.c.month)
+        if search_form.validate_on_submit():
+            database = db.session.query(sbq.c.department, sbq.c.role, sbq.c.staff_name, sbq.c.staff_phone,
+                                        sbq.c.month, func.count(sbq.c.guest_name).label('members'),
+                                        func.sum(sbq.c.balance).label('balance'),
+                                        func.sum(sbq.c.last_balance).label('last_balance')). \
+                filter(sbq.c.month.between(search_form.start_time.data.strip(), search_form.end_time.data.strip())).group_by(sbq.c.department, sbq.c.role,
+                                                                               sbq.c.staff_name, sbq.c.staff_phone,
+                                                                               sbq.c.month)
     data = database.paginate(page, per_page=current_app.config['OUSI_POSTS_PER_PAGE'], error_out=False)
 
-    return render_template('show/02.html', data=data)
+    return render_template('show/02.html', data=data, searchForm=search_form)
 
 
 @show.route('/logout')
